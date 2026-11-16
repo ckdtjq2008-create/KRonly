@@ -14,10 +14,16 @@
     state.cat = cats.some((c) => c.id === h) ? h : "all";
   };
 
-  const thumb = (p, big) => `
+  // 사진을 못 불러오면 사진만 지우고 아래 이모지가 보이게 함
+  const img = (src, alt, cls = "") =>
+    `<img class="${cls}" src="${esc(src)}" alt="${esc(alt)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" />`;
+
+  const thumb = (p) => `
     <div class="thumb">
-      ${p.image ? `<img src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy" />` : `<span aria-hidden="true">${p.emoji || "📦"}</span>`}
+      <span class="thumb-emoji" aria-hidden="true">${p.emoji || "📦"}</span>
+      ${p.image ? img(p.image, p.name, "thumb-img") : ""}
       <span class="badge ${p.verified ? "ok" : ""}">${p.verified ? "✓ 원산지 확인" : "🇰🇷 국산"}</span>
+      ${p.originImage ? `<span class="label-inset">${img(p.originImage, p.name + " 국산 표기")}<em>국산 표기</em></span>` : ""}
     </div>`;
 
   const card = (p) => `
@@ -67,18 +73,27 @@
   function openDetail(id) {
     const p = products.find((x) => String(x.id) === String(id));
     if (!p) return;
+    const link = (inner, cls) =>
+      `<a class="${cls}" href="${esc(p.coupangUrl)}" target="_blank" rel="sponsored nofollow noopener">${inner}</a>`;
     $("#detail-body").innerHTML = `
-      ${thumb(p, true)}
+      ${link(thumb({ ...p, originImage: "" }), "photo-link")}
+      ${p.originImage ? `
+        <div class="origin-photo">
+          <p class="origin-title">📋 국산 원재료·원산지 표기</p>
+          ${link(img(p.originImage, p.name + " 원산지 표기"), "photo-link origin-link")}
+        </div>` : ""}
       <div class="detail-info">
         <span class="brand">${esc(p.brand)}</span>
         <h3>${esc(p.name)}</h3>
-        <p>${esc(p.desc)}</p>
+        ${p.desc ? `<p>${esc(p.desc)}</p>` : ""}
         <div class="meta">
           <span>제조국 ${esc(p.origin)}</span>
           <span>${esc(catName[p.category])}</span>
           ${(p.tags || []).map((t) => `<span>#${esc(t)}</span>`).join("")}
         </div>
-        <a class="cta" href="${esc(p.coupangUrl)}" target="_blank" rel="sponsored nofollow noopener">쿠팡에서 가격 보기</a>
+      </div>
+      <div class="cta-bar">
+        ${link("쿠팡에서 가격 보기", "cta")}
         <p class="fine">이 링크는 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.</p>
       </div>`;
     $("#detail").showModal();

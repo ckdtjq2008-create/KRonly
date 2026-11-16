@@ -2,7 +2,7 @@
  * 구글 시트(CSV) → 상품 목록 변환
  *
  * 필수 열: 상품명, 쿠팡링크
- * 선택 열: 브랜드, 카테고리, 이미지, 설명, 태그(쉼표 구분), 추천(O/X), 원산지확인(O/X), 이모지, 노출(X면 숨김)
+ * 선택 열: 브랜드, 카테고리, 제품사진, 원산지사진, 설명, 태그(쉼표 구분), 추천(O/X), 원산지확인(O/X), 이모지, 노출(X면 숨김)
  * 열 순서는 상관없고, 1행(헤더)의 이름으로 찾습니다.
  */
 (() => {
@@ -12,7 +12,8 @@
     coupangUrl: ["쿠팡링크", "쿠팡 링크", "파트너스링크", "파트너스 링크", "링크", "url", "link", "coupangurl"],
     brand: ["브랜드", "제조사", "brand"],
     category: ["카테고리", "분류", "category"],
-    image: ["이미지", "이미지url", "사진", "image"],
+    image: ["제품사진", "상품사진", "이미지", "이미지url", "사진", "image"],
+    originImage: ["원산지사진", "국산표기사진", "원산지표기사진", "표기사진", "원재료사진", "라벨사진", "originimage"],
     desc: ["설명", "한줄설명", "desc", "description"],
     tags: ["태그", "tags"],
     pick: ["추천", "pick"],
@@ -20,6 +21,22 @@
     emoji: ["이모지", "emoji"],
     visible: ["노출", "표시", "visible"],
   };
+
+  /*
+   * 사진 주소 정리: 구글 드라이브 공유 링크를 그대로 붙여넣어도 이미지로 보이게 변환
+   *   https://drive.google.com/file/d/<ID>/view?usp=sharing
+   *   https://drive.google.com/open?id=<ID>
+   *   https://drive.google.com/uc?id=<ID>
+   * → https://drive.google.com/thumbnail?id=<ID>&sz=w1200
+   * (드라이브 파일은 "링크가 있는 모든 사용자 - 뷰어"로 공유되어 있어야 합니다)
+   */
+  function imageUrl(raw) {
+    const u = String(raw || "").trim();
+    if (!u) return "";
+    const m = u.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^#]*&)?id=|thumbnail\?id=)([\w-]{10,})/);
+    if (m) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w1200`;
+    return u;
+  }
 
   const norm = (s) => String(s || "").replace(/\s+/g, "").toLowerCase();
   const yes = (v) => ["o", "y", "yes", "true", "1", "✓", "v", "예", "추천"].includes(norm(v));
@@ -77,6 +94,11 @@
       if (no(get("visible"))) return;
       if (!name) { warnings.push(`${line}행: 상품명이 비어 있어 건너뜀`); return; }
       if (!/^https?:\/\//i.test(url)) { warnings.push(`${line}행 '${name}': 쿠팡링크가 없거나 http로 시작하지 않아 건너뜀`); return; }
+      for (const f of ["image", "originImage"]) {
+        const v = get(f);
+        if (/drive\.google\.com\/drive\/folders/.test(v)) warnings.push(`${line}행 '${name}': 사진 칸에 폴더 링크가 들어 있습니다. 사진 파일 하나의 공유 링크를 넣어주세요`);
+        else if (v && !/^https?:\/\//i.test(v)) warnings.push(`${line}행 '${name}': 사진 주소가 http로 시작하지 않습니다 (${v.slice(0, 30)})`);
+      }
       if (!/coupang\.com/i.test(url)) warnings.push(`${line}행 '${name}': 쿠팡 링크가 아닌 것 같습니다 (${url})`);
       else if (!/link\.coupang\.com/i.test(url)) warnings.push(`${line}행 '${name}': 파트너스 단축링크(link.coupang.com)가 아니면 수수료가 적립되지 않을 수 있습니다`);
 
@@ -103,7 +125,8 @@
         coupangUrl: url,
         brand: get("brand"),
         category: catId,
-        image: get("image"),
+        image: imageUrl(get("image")),
+        originImage: imageUrl(get("originImage")),
         desc: get("desc"),
         tags: get("tags").split(/[,#]/).map((t) => t.trim()).filter(Boolean),
         pick: yes(get("pick")),
@@ -122,7 +145,7 @@
     };
   }
 
-  const CACHE_KEY = "kukmade.sheet.v1";
+  const CACHE_KEY = "kukmade.sheet.v2";
   const cache = {
     get() { try { return JSON.parse(localStorage.getItem(CACHE_KEY)); } catch { return null; } },
     set(v) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(v)); } catch {} },
@@ -161,5 +184,5 @@
     }
   }
 
-  window.Sheet = { parseCSV, rowsToCatalog, loadCatalog };
+  window.Sheet = { parseCSV, rowsToCatalog, loadCatalog, imageUrl };
 })();

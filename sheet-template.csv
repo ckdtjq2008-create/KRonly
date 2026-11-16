@@ -1,4 +1,3 @@
-상품명,쿠팡링크,브랜드,카테고리,설명,태그,추천,원산지확인,이미지,이모지,노출
-신라면 멀티팩,https://link.coupang.com/a/여기에링크,농심,식품,얼큰한 국물의 대표 라면,"라면, 간편식",O,O,,🍜,O
-IH 전기압력밥솥 6인용,https://link.coupang.com/a/여기에링크,쿠쿠,주방,찰진 밥맛의 IH 압력밥솥,"밥솥, 가전",O,,,🍚,O
-153 볼펜 세트,https://link.coupang.com/a/여기에링크,모나미,문구,60년 넘게 쓰인 국민 볼펜,볼펜,,,,,O
+상품명,쿠팡링크,제품사진,원산지사진,브랜드,카테고리,설명,태그,추천,원산지확인,노출
+신라면 멀티팩,https://link.coupang.com/a/여기에링크,https://drive.google.com/file/d/제품사진파일ID/view?usp=sharing,https://drive.google.com/file/d/표기사진파일ID/view?usp=sharing,농심,식품,얼큰한 국물의 대표 라면,"라면, 간편식",O,O,O
+IH 전기압력밥솥 6인용,https://link.coupang.com/a/여기에링크,,,쿠쿠,주방,찰진 밥맛의 IH 압력밥솥,"밥솥, 가전",O,,O
