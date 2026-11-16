@@ -153,7 +153,9 @@
       }
       if (group === "food" && !get("originImage")) warnings.push({ line, name, why: "원산지(표시사항) 사진이 없음 — 넣으면 신뢰도가 올라갑니다" });
 
-      const checkedAt = get("checkedAt").replace(/[.\/]/g, "-").replace(/-$/, "");
+      // 날짜: 2026-11-16 / 2026. 11. 16 / 2026/11/16 / 2026년 11월 16일 → 2026-11-16
+      const dm = get("checkedAt").match(/(\d{4})\D{1,3}(\d{1,2})\D{1,3}(\d{1,2})/);
+      const checkedAt = dm ? `${dm[1]}-${dm[2].padStart(2, "0")}-${dm[3].padStart(2, "0")}` : get("checkedAt");
       if (!checkedAt) warnings.push({ line, name, why: "검수일이 비어 있음" });
 
       let id = idFor(name);
