@@ -3,7 +3,7 @@
  */
 window.SITE_CONFIG = {
   // 구글 시트 "웹에 게시 → CSV" 주소. 비우면 예시 상품 표시.
-  sheetCsvUrl: "",
+  sheetCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTNxF8Dp1LwT5Iw4uhXfovMoOM9DUa_Vav-Kxyr1-UtP7vnaJe7dal5CuI2qQ7KrFbsePGEMaLbsTTk/pub?gid=737063340&single=true&output=csv",
 
   // 상품 등록 요청 받을 구글 폼 주소
   requestFormUrl: "",
