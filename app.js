@@ -32,7 +32,6 @@
         <span class="thumb-emoji" aria-hidden="true">${p.emoji}</span>
         ${p.image || p.originImage ? img(p.image || p.originImage, p.name, "thumb-img") : ""}
         ${storageBadge(p)}
-        ${p.qty ? `<span class="qty">${esc(p.qty)}개</span>` : ""}
       </div>
       <div class="card-body">
         <div class="card-meta">

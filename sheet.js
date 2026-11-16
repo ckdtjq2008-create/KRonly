@@ -4,7 +4,7 @@
  * 필수 열: 상품명, 쿠팡링크, 카테고리
  *   식품이면 원재료원산지 필수 (전부 한국이어야 노출)
  *   생활용품이면 제조국 필수 (한국이어야 노출)
- * 선택 열: 구분, 검수일, 보관, 수량, 테마, 추천, 제품사진, 원산지사진, 브랜드, 설명, 태그, 이모지, 노출
+ * 선택 열: 구분, 검수일, 보관, 테마, 추천, 제품사진, 원산지사진, 브랜드, 설명, 태그, 이모지, 노출
  * 열 순서는 상관없고, 1행(헤더)의 이름으로 찾습니다.
  */
 (() => {
@@ -17,7 +17,7 @@
     madeIn: ["제조국", "생산국", "제조"],
     checkedAt: ["검수일", "확인일", "검수"],
     storage: ["보관", "보관방법", "보관방식"],
-    qty: ["수량", "개수", "묶음"],
+    timestamp: ["타임스탬프", "timestamp"], // 구글 폼 응답 시트
     themes: ["테마", "기획전", "theme"],
     pick: ["추천", "pick"],
     image: ["제품사진", "상품사진", "이미지", "사진", "image"],
@@ -38,7 +38,7 @@
 
   // 구글 드라이브 공유 링크 → 이미지 주소
   function imageUrl(raw) {
-    const u = String(raw || "").trim();
+    const u = String(raw || "").split(/[\s,]+/).find((x) => /^https?:\/\//i.test(x)) || String(raw || "").trim();
     if (!u) return "";
     const m = u.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^#]*&)?id=|thumbnail\?id=)([\w-]{10,})/);
     if (m) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w1200`;
@@ -154,8 +154,8 @@
       if (group === "food" && !get("originImage")) warnings.push({ line, name, why: "원산지(표시사항) 사진이 없음 — 넣으면 신뢰도가 올라갑니다" });
 
       // 날짜: 2026-11-16 / 2026. 11. 16 / 2026/11/16 / 2026년 11월 16일 → 2026-11-16
-      const dm = get("checkedAt").match(/(\d{4})\D{1,3}(\d{1,2})\D{1,3}(\d{1,2})/);
-      const checkedAt = dm ? `${dm[1]}-${dm[2].padStart(2, "0")}-${dm[3].padStart(2, "0")}` : get("checkedAt");
+      const dm = (get("checkedAt") || get("timestamp")).match(/(\d{4})\D{1,3}(\d{1,2})\D{1,3}(\d{1,2})/);
+      const checkedAt = dm ? `${dm[1]}-${dm[2].padStart(2, "0")}-${dm[3].padStart(2, "0")}` : get("checkedAt") || get("timestamp");
       if (!checkedAt) warnings.push({ line, name, why: "검수일이 비어 있음" });
 
       let id = idFor(name);
@@ -164,7 +164,6 @@
 
       const storageRaw = norm(get("storage"));
       const storage = /냉동/.test(storageRaw) ? "냉동" : /냉장/.test(storageRaw) ? "냉장" : /상온|실온/.test(storageRaw) ? "상온" : "";
-      const qtyRaw = get("qty").replace(/개$/, "");
 
       products.push({
         id,
@@ -177,7 +176,6 @@
         madeIn: [...new Set(madeIn.map((c) => (isKorea(c) ? "한국" : c)))],
         checkedAt,
         storage,
-        qty: qtyRaw && qtyRaw !== "1" ? qtyRaw : "",
         themes: splitList(get("themes")),
         pick: yes(get("pick")),
         image: imageUrl(get("image")),

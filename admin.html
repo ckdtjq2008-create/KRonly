@@ -68,7 +68,7 @@
       <h2>사이트에 표시되는 상품 <span id="count"></span></h2>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>행</th><th>제품사진</th><th>원산지사진</th><th>상품명</th><th>구분</th><th>카테고리</th><th>원재료/제조국</th><th>검수일</th><th>보관</th><th>수량</th><th>테마</th><th>추천</th><th>쿠팡링크</th></tr></thead>
+          <thead><tr><th>행</th><th>제품사진</th><th>원산지사진</th><th>상품명</th><th>구분</th><th>카테고리</th><th>원재료/제조국</th><th>검수일</th><th>보관</th><th>테마</th><th>추천</th><th>쿠팡링크</th></tr></thead>
           <tbody id="rows"></tbody>
         </table>
       </div>
@@ -82,7 +82,7 @@
         <li><b>생활용품</b>: <b>제조국</b>에 <code>한국</code>. 다른 나라면 사이트에 안 나옵니다.</li>
         <li><b>카테고리</b>로 식품/생활용품이 정해집니다: <span id="cat-list"></span></li>
         <li><b>테마</b>: 쉼표로 여러 개 (예: <code>김장 준비, 아이 간식</code>). 테마마다 홈에 줄이 생기고, 시트에 처음 나온 순서대로 보입니다.</li>
-        <li><b>보관</b>: 냉동 / 냉장 / 상온 · <b>수량</b>: 2 이상이면 사진에 "2개" 표시 · <b>추천</b>: O · <b>노출</b>: X면 숨김</li>
+        <li><b>보관</b>: 냉동 / 냉장 / 상온 · <b>추천</b>: O · <b>노출</b>: X면 숨김</li>
         <li><b>사진</b>: 구글 드라이브에 올리고 "링크가 있는 모든 사용자"로 공유한 링크를 그대로 붙여넣기</li>
       </ol>
       <p style="margin:12px 0 0"><a class="l" href="sheet-template.xlsx" download>시트 양식 내려받기 (드롭다운 포함, 추천)</a> · <a class="l" href="sheet-template.csv" download>CSV 양식</a></p>
@@ -145,7 +145,6 @@
             <td>${esc((p.group === "food" ? p.ingredients : p.madeIn).join(", "))}</td>
             <td>${esc(p.checkedAt) || '<span class="bad-img">없음</span>'}</td>
             <td>${esc(p.storage)}</td>
-            <td>${esc(p.qty)}</td>
             <td>${esc(p.themes.join(", "))}</td>
             <td>${p.pick ? "⭐" : ""}</td>
             <td class="link"><a href="${esc(p.coupangUrl)}" target="_blank" rel="noopener">${esc(p.coupangUrl.slice(0, 36))}${p.coupangUrl.length > 36 ? "…" : ""}</a></td>

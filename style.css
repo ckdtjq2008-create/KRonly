@@ -138,10 +138,6 @@ button { font: inherit; color: inherit; }
 .store small { font-size: 10px; font-weight: 700; margin-top: 2px; }
 .store.frozen { background: var(--frozen); }
 .store.chilled { background: var(--chilled); }
-.qty {
-  position: absolute; left: 8px; bottom: 8px; background: rgb(255 255 255 / .92); color: #111;
-  border: 1px solid #d1d5db; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
-}
 .card-body { display: flex; flex-direction: column; gap: 2px; padding: 0 2px; }
 .card-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
 .pick { color: var(--brand); font-weight: 700; }
