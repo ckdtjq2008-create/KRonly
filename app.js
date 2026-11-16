@@ -2,9 +2,9 @@
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-  const cats = window.CATEGORIES;
-  const products = window.PRODUCTS;
-  const catName = Object.fromEntries(cats.map((c) => [c.id, c.name]));
+  let cats = [];
+  let products = [];
+  let catName = {};
 
   const state = { cat: "all", q: "", sort: "default" };
 
@@ -53,7 +53,7 @@
     renderCats();
     const browsingHome = state.cat === "all" && !state.q;
     $("#hero").hidden = !browsingHome;
-    $("#picks-section").hidden = !browsingHome;
+    $("#picks-section").hidden = !browsingHome || !products.some((p) => p.pick);
     $("#picks").innerHTML = products.filter((p) => p.pick).map(card).join("");
 
     const list = filtered();
@@ -111,6 +111,13 @@
   $("#sort").addEventListener("change", (e) => { state.sort = e.target.value; render(); });
   window.addEventListener("hashchange", () => { fromHash(); render(); });
 
-  fromHash();
-  render();
+  // 시트(또는 예시 데이터)를 불러와서 표시
+  window.Sheet.loadCatalog((data) => {
+    cats = data.categories;
+    products = data.products;
+    catName = Object.fromEntries(cats.map((c) => [c.id, c.name]));
+    fromHash();
+    render();
+    document.body.dataset.source = data.source;
+  });
 })();
