@@ -11,6 +11,7 @@
     .admin { padding: 24px 16px 60px; }
     .admin h1 { font-size: 22px; margin: 0 0 4px; }
     .admin .sub { color: var(--muted); margin: 0 0 20px; }
+    .admin a.l { color: var(--brand); text-decoration: underline; }
     .box { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
     .box h2 { font-size: 16px; margin: 0 0 10px; }
     .status { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -20,15 +21,21 @@
     .pill.warn { background: #fef3c7; color: #92400e; border-color: #fde68a; }
     .btn { font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer; }
     .btn.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
-    .warns { margin: 0; padding-left: 18px; font-size: 14px; }
-    .warns li { margin: 4px 0; }
+    .issues { margin: 0; padding-left: 0; list-style: none; font-size: 14px; }
+    .issues li { padding: 6px 0; border-bottom: 1px dashed var(--line); }
+    .issues li:last-child { border-bottom: 0; }
+    .issues .ln { display: inline-block; min-width: 44px; font-weight: 700; color: var(--muted); }
+    .box.bad { border-color: #fecaca; }
+    .box.bad h2 { color: #b91c1c; }
+    .box.warn h2 { color: #92400e; }
     .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); white-space: nowrap; vertical-align: middle; }
     th { color: var(--muted); font-weight: 600; }
     td.link a { color: var(--brand); text-decoration: underline; }
+    td.img img { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; display: block; }
     .bad-img { color: #dc2626; font-weight: 700; font-size: 12px; }
-    td.img img { width: 36px; height: 36px; object-fit: cover; border-radius: 6px; }
+    .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; font-size: 13px; }
     ol.steps { margin: 0; padding-left: 20px; font-size: 14px; }
     ol.steps li { margin: 6px 0; }
     code { background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; font-size: 12px; word-break: break-all; }
@@ -38,44 +45,50 @@
 <body>
   <main class="wrap admin">
     <h1>상품 관리</h1>
-    <p class="sub">상품은 구글 시트에서 추가·수정·삭제합니다. 이 페이지는 시트가 사이트에 제대로 연결됐는지 확인하는 곳입니다. <a href="./" style="color:var(--brand)">← 사이트로</a></p>
+    <p class="sub">상품은 구글 시트에서 추가·수정·삭제합니다. 이 페이지는 시트가 사이트에 제대로 들어갔는지 확인하는 곳입니다. <a class="l" href="./">← 사이트로</a></p>
 
     <section class="box">
       <h2>연결 상태</h2>
       <div class="status" id="status"><span class="pill">확인 중…</span></div>
+      <div class="stats" id="stats"></div>
       <p style="margin:12px 0 0"><button class="btn primary" id="reload">시트 다시 불러오기</button></p>
     </section>
 
-    <section class="box" id="warn-box" hidden>
-      <h2>확인이 필요한 행</h2>
-      <ul class="warns" id="warns"></ul>
+    <section class="box bad" id="ex-box" hidden>
+      <h2>⛔ 사이트에 안 나오는 상품 (기준 미달·입력 오류)</h2>
+      <ul class="issues" id="ex"></ul>
+    </section>
+
+    <section class="box warn" id="warn-box" hidden>
+      <h2>⚠️ 사이트에 나오지만 고치면 좋은 것</h2>
+      <ul class="issues" id="warns"></ul>
     </section>
 
     <section class="box">
       <h2>사이트에 표시되는 상품 <span id="count"></span></h2>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>제품사진</th><th>원산지사진</th><th>상품명</th><th>브랜드</th><th>카테고리</th><th>추천</th><th>원산지확인</th><th>쿠팡링크</th></tr></thead>
+          <thead><tr><th>행</th><th>제품사진</th><th>원산지사진</th><th>상품명</th><th>구분</th><th>카테고리</th><th>원재료/제조국</th><th>검수일</th><th>보관</th><th>수량</th><th>테마</th><th>추천</th><th>쿠팡링크</th></tr></thead>
           <tbody id="rows"></tbody>
         </table>
       </div>
     </section>
 
     <section class="box">
-      <h2>처음 설정하는 법</h2>
+      <h2>시트 작성 규칙</h2>
       <ol class="steps">
-        <li><a href="sheet-template.csv" download style="color:var(--brand)">시트 양식(CSV) 내려받기</a> → 구글 시트에서 <b>파일 → 가져오기 → 업로드</b></li>
-        <li>1행 헤더는 그대로 두고, 2행부터 상품을 입력 (<b>상품명</b>, <b>쿠팡링크</b>만 필수)</li>
-        <li>사진은 구글 드라이브에 올리고 <b>공유 → 링크가 있는 모든 사용자(뷰어)</b>로 바꾼 뒤, <b>링크 복사</b>한 주소를 <b>제품사진</b>·<b>원산지사진</b> 칸에 붙여넣기</li>
-        <li><b>파일 → 공유 → 웹에 게시</b> → 상품 시트 선택, 형식 <b>쉼표로 구분된 값(.csv)</b> → 게시 → 주소 복사</li>
-        <li>복사한 주소를 <code>config.js</code>의 <code>sheetCsvUrl</code>에 붙여넣고 사이트 다시 배포</li>
+        <li><b>상품명, 쿠팡링크, 카테고리</b>는 필수</li>
+        <li><b>식품</b>: <b>원재료원산지</b>에 원재료 원산지를 모두 적기 (예: <code>한국</code>). 한국이 아닌 나라가 하나라도 있으면 사이트에 안 나옵니다.</li>
+        <li><b>생활용품</b>: <b>제조국</b>에 <code>한국</code>. 다른 나라면 사이트에 안 나옵니다.</li>
+        <li><b>카테고리</b>로 식품/생활용품이 정해집니다: <span id="cat-list"></span></li>
+        <li><b>테마</b>: 쉼표로 여러 개 (예: <code>김장 준비, 아이 간식</code>). 테마마다 홈에 줄이 생기고, 시트에 처음 나온 순서대로 보입니다.</li>
+        <li><b>보관</b>: 냉동 / 냉장 / 상온 · <b>수량</b>: 2 이상이면 사진에 "2개" 표시 · <b>추천</b>: O · <b>노출</b>: X면 숨김</li>
+        <li><b>사진</b>: 구글 드라이브에 올리고 "링크가 있는 모든 사용자"로 공유한 링크를 그대로 붙여넣기</li>
       </ol>
-      <p style="font-size:13px;color:var(--muted);margin:12px 0 0">
-        시트를 고친 뒤 사이트에 반영되기까지 구글 쪽 캐시 때문에 최대 5분 정도 걸릴 수 있습니다.
-        아래 표에서 사진이 "안 보임"으로 뜨면 드라이브 파일 공유 설정이 "제한됨"으로 되어 있는 경우가 대부분입니다.
-      </p>
-      <h2 style="margin-top:16px">주소 미리 시험해보기</h2>
-      <p style="font-size:13px;color:var(--muted);margin:0 0 8px">config.js를 고치기 전에, 게시한 CSV 주소가 제대로 읽히는지 여기서 확인할 수 있습니다(이 브라우저에서만 적용).</p>
+      <p style="margin:12px 0 0"><a class="l" href="sheet-template.csv" download>시트 양식(CSV) 내려받기</a></p>
+
+      <h2 style="margin-top:20px">다른 주소로 시험해보기</h2>
+      <p style="font-size:13px;color:var(--muted);margin:0 0 8px">config.js를 고치기 전에 게시한 CSV 주소가 제대로 읽히는지 여기서 확인할 수 있습니다.</p>
       <input class="url" id="try-url" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv" />
       <p style="margin:8px 0 0"><button class="btn" id="try">이 주소로 확인</button></p>
     </section>
@@ -90,45 +103,60 @@
       const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
       const configured = window.SITE_CONFIG.sheetCsvUrl;
 
-      // 사진을 못 불러오면 빨간 표시 (드라이브 공유 설정 문제인 경우가 대부분)
-      const pic = (src, empty) => src
+      $("#cat-list").innerHTML = Object.entries(window.GROUPS).map(([g, G]) =>
+        `<br>${G.emoji} ${G.name}: ${window.CATEGORIES.filter((c) => c.group === g).map((c) => `<code>${esc(c.name)}</code>`).join(" ")}`).join("");
+
+      const pic = (src) => src
         ? `<a href="${esc(src)}" target="_blank" rel="noopener"><img src="${esc(src)}" alt="" referrerpolicy="no-referrer" onerror="this.parentNode.outerHTML='<span class=&quot;bad-img&quot;>안 보임</span>'" /></a>`
-        : esc(empty);
+        : "—";
+      const issue = (x) => `<li><span class="ln">${x.line}행</span><b>${esc(x.name)}</b> — ${esc(x.why)}</li>`;
 
       function show(data, url) {
         const pills = [];
-        if (!url) pills.push('<span class="pill warn">시트 미연결 — config.js의 sheetCsvUrl이 비어 있어 예시 데이터를 표시 중</span>');
+        if (!url) pills.push('<span class="pill warn">시트 미연결 — config.js의 sheetCsvUrl이 비어 있어 예시 상품을 표시 중</span>');
         else if (data.error) pills.push(`<span class="pill bad">불러오기 실패: ${esc(data.error)}</span>`);
         else pills.push('<span class="pill ok">시트 연결됨</span>');
         if (data.source === "sheet") pills.push(`<span class="pill">불러온 시각 ${new Date().toLocaleTimeString("ko-KR")}</span>`);
         if (url && url !== configured) pills.push('<span class="pill warn">시험 중인 주소 (config.js에는 아직 반영 안 됨)</span>');
         $("#status").innerHTML = pills.join("");
 
-        const warns = data.warnings || [];
-        $("#warn-box").hidden = !warns.length;
-        $("#warns").innerHTML = warns.map((w) => `<li>${esc(w)}</li>`).join("");
+        const food = data.products.filter((p) => p.group === "food").length;
+        $("#stats").innerHTML = `
+          <span class="pill">🍚 식품 ${food}개</span>
+          <span class="pill">🧺 생활용품 ${data.products.length - food}개</span>
+          <span class="pill">테마 ${data.themes.length}개${data.themes.length ? ": " + data.themes.map(esc).join(", ") : ""}</span>
+          ${data.excluded.length ? `<span class="pill bad">숨김 ${data.excluded.length}개</span>` : ""}`;
+
+        $("#ex-box").hidden = !data.excluded.length;
+        $("#ex").innerHTML = data.excluded.map(issue).join("");
+        $("#warn-box").hidden = !data.warnings.length;
+        $("#warns").innerHTML = data.warnings.map(issue).join("");
 
         const catName = Object.fromEntries(data.categories.map((c) => [c.id, c.name]));
         $("#count").textContent = `(${data.products.length}개)`;
         $("#rows").innerHTML = data.products.map((p) => `
           <tr>
-            <td class="img">${pic(p.image, p.emoji || "📦")}</td>
-            <td class="img">${pic(p.originImage, "—")}</td>
-            <td>${esc(p.name)}</td>
-            <td>${esc(p.brand)}</td>
+            <td>${p.line}</td>
+            <td class="img">${pic(p.image)}</td>
+            <td class="img">${pic(p.originImage)}</td>
+            <td><a class="l" href="./#p=${p.id}" target="_blank">${esc(p.name)}</a></td>
+            <td>${p.group === "food" ? "식품" : "생활"}</td>
             <td>${esc(catName[p.category] || p.category)}</td>
+            <td>${esc((p.group === "food" ? p.ingredients : p.madeIn).join(", "))}</td>
+            <td>${esc(p.checkedAt) || '<span class="bad-img">없음</span>'}</td>
+            <td>${esc(p.storage)}</td>
+            <td>${esc(p.qty)}</td>
+            <td>${esc(p.themes.join(", "))}</td>
             <td>${p.pick ? "⭐" : ""}</td>
-            <td>${p.verified ? "✓" : ""}</td>
-            <td class="link"><a href="${esc(p.coupangUrl)}" target="_blank" rel="noopener">${esc(p.coupangUrl.slice(0, 40))}${p.coupangUrl.length > 40 ? "…" : ""}</a></td>
+            <td class="link"><a href="${esc(p.coupangUrl)}" target="_blank" rel="noopener">${esc(p.coupangUrl.slice(0, 36))}${p.coupangUrl.length > 36 ? "…" : ""}</a></td>
           </tr>`).join("");
       }
 
       async function load(url) {
         $("#status").innerHTML = '<span class="pill">불러오는 중…</span>';
-        window.SITE_CONFIG.sheetCsvUrl = url;
-        try { localStorage.removeItem("kukmade.sheet.v2"); } catch {}
+        window.Sheet.clearCache();
         let last;
-        await window.Sheet.loadCatalog((d) => { last = d; });
+        await window.Sheet.loadCatalog((d) => { last = d; }, url);
         show(last, url);
       }
 

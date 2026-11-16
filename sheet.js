@@ -1,35 +1,42 @@
 /*
  * 구글 시트(CSV) → 상품 목록 변환
  *
- * 필수 열: 상품명, 쿠팡링크
- * 선택 열: 브랜드, 카테고리, 제품사진, 원산지사진, 설명, 태그(쉼표 구분), 추천(O/X), 원산지확인(O/X), 이모지, 노출(X면 숨김)
+ * 필수 열: 상품명, 쿠팡링크, 카테고리
+ *   식품이면 원재료원산지 필수 (전부 한국이어야 노출)
+ *   생활용품이면 제조국 필수 (한국이어야 노출)
+ * 선택 열: 구분, 검수일, 보관, 수량, 테마, 추천, 제품사진, 원산지사진, 브랜드, 설명, 태그, 이모지, 노출
  * 열 순서는 상관없고, 1행(헤더)의 이름으로 찾습니다.
  */
 (() => {
-  // 헤더 이름 → 내부 필드 (여러 표기 허용)
   const HEADERS = {
     name: ["상품명", "제품명", "이름", "name"],
-    coupangUrl: ["쿠팡링크", "쿠팡 링크", "파트너스링크", "파트너스 링크", "링크", "url", "link", "coupangurl"],
-    brand: ["브랜드", "제조사", "brand"],
+    coupangUrl: ["쿠팡링크", "파트너스링크", "링크", "url", "link"],
+    group: ["구분", "대분류", "group"],
     category: ["카테고리", "분류", "category"],
-    image: ["제품사진", "상품사진", "이미지", "이미지url", "사진", "image"],
-    originImage: ["원산지사진", "국산표기사진", "원산지표기사진", "표기사진", "원재료사진", "라벨사진", "originimage"],
-    desc: ["설명", "한줄설명", "desc", "description"],
-    tags: ["태그", "tags"],
+    ingredients: ["원재료원산지", "원재료", "원료원산지", "원산지"],
+    madeIn: ["제조국", "생산국", "제조"],
+    checkedAt: ["검수일", "확인일", "검수"],
+    storage: ["보관", "보관방법", "보관방식"],
+    qty: ["수량", "개수", "묶음"],
+    themes: ["테마", "기획전", "theme"],
     pick: ["추천", "pick"],
-    verified: ["원산지확인", "확인", "verified"],
+    image: ["제품사진", "상품사진", "이미지", "사진", "image"],
+    originImage: ["원산지사진", "표시사항사진", "원재료사진", "라벨사진", "국산표기사진", "표기사진"],
+    brand: ["브랜드", "제조사", "brand"],
+    desc: ["설명", "한줄설명", "desc"],
+    tags: ["태그", "해시태그", "tags"],
     emoji: ["이모지", "emoji"],
     visible: ["노출", "표시", "visible"],
   };
 
-  /*
-   * 사진 주소 정리: 구글 드라이브 공유 링크를 그대로 붙여넣어도 이미지로 보이게 변환
-   *   https://drive.google.com/file/d/<ID>/view?usp=sharing
-   *   https://drive.google.com/open?id=<ID>
-   *   https://drive.google.com/uc?id=<ID>
-   * → https://drive.google.com/thumbnail?id=<ID>&sz=w1200
-   * (드라이브 파일은 "링크가 있는 모든 사용자 - 뷰어"로 공유되어 있어야 합니다)
-   */
+  const norm = (s) => String(s || "").replace(/[\s·.\/_-]+/g, "").toLowerCase();
+  const yes = (v) => ["o", "y", "yes", "true", "1", "✓", "v", "예", "추천"].includes(norm(v));
+  const no = (v) => ["x", "n", "no", "false", "0", "숨김", "아니오"].includes(norm(v));
+  const KOREA = ["한국", "국산", "국내산", "국내", "대한민국", "korea", "kr", "southkorea"];
+  const splitList = (v) => String(v || "").split(/[,/、]|\s+및\s+/).map((t) => t.trim()).filter(Boolean);
+  const isKorea = (c) => KOREA.includes(norm(c));
+
+  // 구글 드라이브 공유 링크 → 이미지 주소
   function imageUrl(raw) {
     const u = String(raw || "").trim();
     if (!u) return "";
@@ -38,9 +45,12 @@
     return u;
   }
 
-  const norm = (s) => String(s || "").replace(/\s+/g, "").toLowerCase();
-  const yes = (v) => ["o", "y", "yes", "true", "1", "✓", "v", "예", "추천"].includes(norm(v));
-  const no = (v) => ["x", "n", "no", "false", "0", "숨김", "아니오"].includes(norm(v));
+  // 상품명으로 만든 고정 ID (공유 링크용)
+  function idFor(name) {
+    let h = 5381;
+    for (const ch of name) h = ((h << 5) + h + ch.codePointAt(0)) >>> 0;
+    return h.toString(36);
+  }
 
   // 따옴표·줄바꿈이 들어간 셀까지 처리하는 CSV 파서
   function parseCSV(text) {
@@ -65,8 +75,9 @@
     return rows.filter((r) => r.some((v) => v.trim() !== ""));
   }
 
-  function rowsToCatalog(rows, baseCategories) {
-    const warnings = [];
+  function rowsToCatalog(rows) {
+    const warnings = [];   // 고치면 좋은 것 (노출은 됨)
+    const excluded = [];   // 기준 미달·오류로 숨긴 것
     if (!rows.length) throw new Error("시트가 비어 있습니다.");
 
     const header = rows[0].map(norm);
@@ -79,89 +90,137 @@
       throw new Error("1행에 '상품명'과 '쿠팡링크' 열이 있어야 합니다. 현재 헤더: " + rows[0].join(", "));
     }
 
-    // 기본 카테고리(이름 → id). 시트에 새 카테고리가 나오면 자동 추가.
-    const categories = baseCategories.map((c) => ({ ...c }));
-    const byName = Object.fromEntries(categories.map((c) => [norm(c.name), c]));
-    const defaultEmoji = Object.fromEntries(categories.map((c) => [c.id, c.emoji]));
+    const categories = window.CATEGORIES.map((c) => ({ ...c }));
+    const findCat = (label) => {
+      const n = norm(label);
+      return categories.find((c) => norm(c.name) === n || c.id === n || (c.aliases || []).some((a) => norm(a) === n));
+    };
 
     const products = [];
+    const seen = new Set();
     rows.slice(1).forEach((r, i) => {
-      const line = i + 2; // 시트 행 번호
+      const line = i + 2;
       const get = (f) => (col[f] == null ? "" : String(r[col[f]] ?? "").trim());
       const name = get("name");
       const url = get("coupangUrl");
       if (!name && !url) return;
       if (no(get("visible"))) return;
-      if (!name) { warnings.push(`${line}행: 상품명이 비어 있어 건너뜀`); return; }
-      if (!/^https?:\/\//i.test(url)) { warnings.push(`${line}행 '${name}': 쿠팡링크가 없거나 http로 시작하지 않아 건너뜀`); return; }
-      for (const f of ["image", "originImage"]) {
-        const v = get(f);
-        if (/drive\.google\.com\/drive\/folders/.test(v)) warnings.push(`${line}행 '${name}': 사진 칸에 폴더 링크가 들어 있습니다. 사진 파일 하나의 공유 링크를 넣어주세요`);
-        else if (v && !/^https?:\/\//i.test(v)) warnings.push(`${line}행 '${name}': 사진 주소가 http로 시작하지 않습니다 (${v.slice(0, 30)})`);
-      }
-      if (!/coupang\.com/i.test(url)) warnings.push(`${line}행 '${name}': 쿠팡 링크가 아닌 것 같습니다 (${url})`);
-      else if (!/link\.coupang\.com/i.test(url)) warnings.push(`${line}행 '${name}': 파트너스 단축링크(link.coupang.com)가 아니면 수수료가 적립되지 않을 수 있습니다`);
+      const skip = (why) => excluded.push({ line, name: name || "(이름 없음)", why });
 
+      if (!name) return skip("상품명이 비어 있음");
+      if (!/^https?:\/\//i.test(url)) return skip("쿠팡링크가 없거나 http로 시작하지 않음");
+
+      // 카테고리 → 구분(식품/생활)
       const catLabel = get("category");
-      let cat = null;
-      if (catLabel) {
-        cat = byName[norm(catLabel)];
+      let cat = catLabel ? findCat(catLabel) : null;
+      const groupLabel = norm(get("group"));
+      const groupGuess = /생활|living/.test(groupLabel) ? "living" : /식품|food/.test(groupLabel) ? "food" : null;
+      let newCatWarning = "";
+      if (!cat) {
+        // 구분 칸이 없으면: 제조국만 적혀 있으면 생활용품, 아니면 식품으로 판단
+        const group = groupGuess || (get("madeIn") && !get("ingredients") ? "living" : "food");
+        const label = catLabel || (group === "food" ? "기타 식품" : "기타 생활용품");
+        cat = categories.find((c) => c.name === label);
         if (!cat) {
-          cat = { id: catLabel, name: catLabel, emoji: "📦" };
+          cat = { id: "x-" + idFor(label), group, name: label, emoji: "📦", aliases: [] };
           categories.push(cat);
-          byName[norm(catLabel)] = cat;
+          if (catLabel) newCatWarning = `새 카테고리 '${catLabel}'(${group === "food" ? "식품" : "생활용품"})로 등록됨 — 오타가 아닌지 확인`;
         }
       }
-      const catId = cat ? cat.id : "etc";
-      if (!cat && !byName[norm("기타")]) {
-        const etc = { id: "etc", name: "기타", emoji: "📦" };
-        categories.push(etc);
-        byName[norm("기타")] = etc;
+      const group = cat.group;
+
+      // 기준 검사
+      const ingredients = splitList(get("ingredients"));
+      const madeIn = splitList(get("madeIn"));
+      if (group === "food") {
+        if (!ingredients.length) return skip("식품인데 '원재료원산지'가 비어 있음");
+        const foreign = ingredients.filter((c) => !isKorea(c));
+        if (foreign.length) return skip(`원재료에 국산이 아닌 원산지 포함 (${foreign.join(", ")}) — 식품 기준(원재료 100% 국산) 미달`);
+      } else {
+        if (!madeIn.length) return skip("생활용품인데 '제조국'이 비어 있음");
+        const foreign = madeIn.filter((c) => !isKorea(c));
+        if (foreign.length) return skip(`제조국이 한국이 아님 (${foreign.join(", ")}) — 생활용품 기준(국내 제조) 미달`);
       }
 
+      if (newCatWarning) warnings.push({ line, name, why: newCatWarning });
+      if (!/coupang\.com/i.test(url)) warnings.push({ line, name, why: `쿠팡 링크가 아닌 것 같음 (${url.slice(0, 40)})` });
+      else if (!/link\.coupang\.com/i.test(url)) warnings.push({ line, name, why: "파트너스 단축링크(link.coupang.com)가 아니라 수수료가 적립되지 않을 수 있음" });
+
+      for (const f of ["image", "originImage"]) {
+        const v = get(f);
+        if (/drive\.google\.com\/drive\/folders/.test(v)) warnings.push({ line, name, why: "사진 칸에 폴더 링크가 있음 — 사진 파일 하나의 링크를 넣어주세요" });
+        else if (v && !/^https?:\/\//i.test(v)) warnings.push({ line, name, why: "사진 주소가 http로 시작하지 않음" });
+      }
+      if (group === "food" && !get("originImage")) warnings.push({ line, name, why: "원산지(표시사항) 사진이 없음 — 넣으면 신뢰도가 올라갑니다" });
+
+      const checkedAt = get("checkedAt").replace(/[.\/]/g, "-").replace(/-$/, "");
+      if (!checkedAt) warnings.push({ line, name, why: "검수일이 비어 있음" });
+
+      let id = idFor(name);
+      while (seen.has(id)) id += "x";
+      seen.add(id);
+
+      const storageRaw = norm(get("storage"));
+      const storage = /냉동/.test(storageRaw) ? "냉동" : /냉장/.test(storageRaw) ? "냉장" : /상온|실온/.test(storageRaw) ? "상온" : "";
+      const qtyRaw = get("qty").replace(/개$/, "");
+
       products.push({
-        id: "s" + line,
+        id,
+        line,
         name,
         coupangUrl: url,
-        brand: get("brand"),
-        category: catId,
+        group,
+        category: cat.id,
+        ingredients: [...new Set(ingredients.map((c) => (isKorea(c) ? "한국" : c)))],
+        madeIn: [...new Set(madeIn.map((c) => (isKorea(c) ? "한국" : c)))],
+        checkedAt,
+        storage,
+        qty: qtyRaw && qtyRaw !== "1" ? qtyRaw : "",
+        themes: splitList(get("themes")),
+        pick: yes(get("pick")),
         image: imageUrl(get("image")),
         originImage: imageUrl(get("originImage")),
+        brand: get("brand"),
         desc: get("desc"),
-        tags: get("tags").split(/[,#]/).map((t) => t.trim()).filter(Boolean),
-        pick: yes(get("pick")),
-        verified: yes(get("verified")),
-        emoji: get("emoji") || defaultEmoji[catId] || "📦",
-        origin: "대한민국",
+        tags: splitList(get("tags").replace(/#/g, ",")),
+        emoji: get("emoji") || cat.emoji || "📦",
       });
     });
 
-    // 상품이 하나도 없는 카테고리는 숨김 ("전체"는 유지)
+    // 테마: 시트에 처음 나온 순서대로
+    const themes = [];
+    for (const p of products) for (const t of p.themes) if (!themes.includes(t)) themes.push(t);
+
     const used = new Set(products.map((p) => p.category));
     return {
-      categories: categories.filter((c) => c.id === "all" || used.has(c.id)),
+      categories: categories.filter((c) => used.has(c.id)),
       products,
+      themes,
       warnings,
+      excluded,
     };
   }
 
-  const CACHE_KEY = "kukmade.sheet.v2";
+  const CACHE_KEY = "kukmade.sheet.v3";
   const cache = {
     get() { try { return JSON.parse(localStorage.getItem(CACHE_KEY)); } catch { return null; } },
     set(v) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(v)); } catch {} },
+    clear() { try { localStorage.removeItem(CACHE_KEY); } catch {} },
   };
 
+  const example = () => ({ ...rowsToCatalog(parseCSV(window.EXAMPLE_CSV)), source: "example" });
+
   /*
-   * 상품 목록을 불러옵니다.
-   * onData는 최대 2번 호출됩니다: 저장된 캐시로 한 번(빠른 표시), 시트 최신본으로 한 번.
+   * 상품 목록을 불러옵니다. onData는 최대 2번 호출됩니다:
+   * 저장된 캐시로 한 번(빠른 표시), 시트 최신본으로 한 번.
    */
-  async function loadCatalog(onData) {
-    const fallback = { categories: window.CATEGORIES, products: window.PRODUCTS, warnings: [], source: "example" };
-    const url = (window.SITE_CONFIG || {}).sheetCsvUrl;
-    if (!url) { onData(fallback); return fallback; }
+  async function loadCatalog(onData, urlOverride) {
+    const url = urlOverride ?? (window.SITE_CONFIG || {}).sheetCsvUrl;
+    if (!url) { const d = example(); onData(d); return d; }
 
     const cached = cache.get();
-    if (cached && cached.url === url) onData({ ...cached.data, source: "cache" });
+    const hasCache = cached && cached.url === url;
+    if (hasCache) onData({ ...cached.data, source: "cache" });
 
     try {
       const sep = url.includes("?") ? "&" : "?";
@@ -169,20 +228,18 @@
       if (!res.ok) throw new Error("시트를 불러오지 못했습니다 (HTTP " + res.status + ")");
       const text = await res.text();
       if (/^\s*</.test(text)) throw new Error("CSV가 아니라 웹페이지가 왔습니다. '웹에 게시'에서 형식을 CSV로 선택했는지 확인하세요.");
-      const data = rowsToCatalog(parseCSV(text), window.CATEGORIES);
+      const data = rowsToCatalog(parseCSV(text));
       cache.set({ url, data, at: Date.now() });
       const result = { ...data, source: "sheet" };
       onData(result);
       return result;
     } catch (err) {
-      console.error("[국산모아] 시트 로딩 실패:", err);
-      const result = cached && cached.url === url
-        ? { ...cached.data, source: "cache", error: err.message }
-        : { ...fallback, error: err.message };
-      if (!cached || cached.url !== url) onData(result);
+      console.error("[시트 로딩 실패]", err);
+      const result = hasCache ? { ...cached.data, source: "cache", error: err.message } : { ...example(), error: err.message };
+      if (!hasCache) onData(result);
       return result;
     }
   }
 
-  window.Sheet = { parseCSV, rowsToCatalog, loadCatalog, imageUrl };
+  window.Sheet = { parseCSV, rowsToCatalog, loadCatalog, imageUrl, clearCache: cache.clear };
 })();

@@ -1,56 +1,58 @@
 /*
- * 상품 데이터
+ * 분류 기준과 카테고리
  * ------------------------------------------------------------
- * - coupangUrl: 쿠팡 파트너스에서 발급받은 단축 링크(https://link.coupang.com/a/xxxx)로 교체하세요.
- *   지금 들어 있는 검색 링크는 수수료가 적립되지 않는 임시 링크입니다.
- * - origin: 제조국 표기. 게시 전 상품 상세페이지의 "제조국/원산지"를 직접 확인하세요.
- *   (같은 브랜드라도 모델·시기에 따라 해외 생산인 경우가 있습니다.)
- * - verified: 원산지를 직접 확인했으면 true → 카드에 "원산지 확인" 배지가 붙습니다.
- * - image: 상품 이미지 URL(쿠팡 파트너스 상품 이미지 등). 비워두면 이모지 썸네일이 표시됩니다.
+ * 식품: 원재료 원산지가 전부 한국인 제품만 노출
+ * 생활용품: 제조국이 한국인 제품만 노출
+ *
+ * 카테고리를 추가하려면 아래 목록에 한 줄 넣으세요.
+ * aliases: 시트에 이 이름으로 적어도 같은 카테고리로 인식
  */
+window.GROUPS = {
+  food: { name: "식품", rule: "원재료 100% 국산", emoji: "🍚", desc: "원재료 원산지가 모두 한국인 식품만 모았어요" },
+  living: { name: "생활용품", rule: "국내 제조", emoji: "🧺", desc: "대한민국에서 만든 생활용품만 모았어요" },
+};
+
 window.CATEGORIES = [
-  { id: "all", name: "전체", emoji: "🇰🇷" },
-  { id: "food", name: "식품", emoji: "🍚" },
-  { id: "kitchen", name: "주방", emoji: "🍳" },
-  { id: "living", name: "생활용품", emoji: "🧺" },
-  { id: "beauty", name: "뷰티", emoji: "🧴" },
-  { id: "health", name: "건강", emoji: "💪" },
-  { id: "stationery", name: "문구", emoji: "✏️" },
+  // 식품
+  { id: "frozen", group: "food", name: "간편식·냉동", emoji: "🥟", aliases: ["간편식", "냉동", "냉동식품", "즉석식품", "만두"] },
+  { id: "side", group: "food", name: "김치·반찬", emoji: "🥬", aliases: ["김치", "반찬", "두부"] },
+  { id: "sauce", group: "food", name: "장·양념", emoji: "🫙", aliases: ["장", "양념", "소스", "조미료", "장류"] },
+  { id: "grain", group: "food", name: "쌀·잡곡", emoji: "🌾", aliases: ["쌀", "잡곡", "곡물"] },
+  { id: "produce", group: "food", name: "과일·채소", emoji: "🍎", aliases: ["과일", "채소", "견과", "농산물"] },
+  { id: "meat", group: "food", name: "정육·계란", emoji: "🥩", aliases: ["정육", "고기", "계란", "육류"] },
+  { id: "sea", group: "food", name: "수산·건어물", emoji: "🐟", aliases: ["수산", "건어물", "해산물", "김"] },
+  { id: "snack", group: "food", name: "과자·간식", emoji: "🍪", aliases: ["과자", "간식", "디저트"] },
+  { id: "drink", group: "food", name: "음료·차", emoji: "🥛", aliases: ["음료", "차", "커피", "유제품", "우유"] },
+  { id: "baby", group: "food", name: "유아식", emoji: "🍼", aliases: ["아기", "이유식", "유아"] },
+  { id: "healthfood", group: "food", name: "건강식품", emoji: "🌿", aliases: ["건강", "홍삼", "건강기능식품"] },
+  // 생활용품
+  { id: "kitchen", group: "living", name: "주방용품", emoji: "🍳", aliases: ["주방", "조리도구", "식기"] },
+  { id: "clean", group: "living", name: "세제·청소", emoji: "🧽", aliases: ["세제", "청소", "세탁"] },
+  { id: "bath", group: "living", name: "욕실·위생", emoji: "🧻", aliases: ["욕실", "위생", "화장지"] },
+  { id: "beauty", group: "living", name: "뷰티·바디", emoji: "🧴", aliases: ["뷰티", "화장품", "바디", "샴푸", "헤어"] },
+  { id: "stationery", group: "living", name: "문구·사무", emoji: "✏️", aliases: ["문구", "사무", "필기구"] },
+  { id: "appliance", group: "living", name: "소형가전", emoji: "🔌", aliases: ["가전", "전자"] },
+  { id: "home", group: "living", name: "침구·인테리어", emoji: "🛏️", aliases: ["침구", "인테리어", "가구"] },
 ];
 
-const q = (s) => "https://www.coupang.com/np/search?q=" + encodeURIComponent(s);
-
-window.PRODUCTS = [
-  { id: 1, name: "신라면 멀티팩", brand: "농심", category: "food", emoji: "🍜", origin: "대한민국", verified: false, pick: true,
-    desc: "얼큰한 국물의 대표 라면. 자취·캠핑 필수템.", tags: ["라면", "간편식"], coupangUrl: q("농심 신라면 멀티팩") },
-  { id: 2, name: "불닭볶음면 멀티팩", brand: "삼양", category: "food", emoji: "🔥", origin: "대한민국", verified: false, pick: true,
-    desc: "매운맛 마니아를 위한 볶음면.", tags: ["라면", "매운맛"], coupangUrl: q("삼양 불닭볶음면 멀티팩") },
-  { id: 3, name: "맥심 모카골드 커피믹스", brand: "동서", category: "food", emoji: "☕", origin: "대한민국", verified: false,
-    desc: "사무실 탕비실 단골 커피믹스.", tags: ["커피", "믹스커피"], coupangUrl: q("맥심 모카골드 커피믹스") },
-  { id: 4, name: "홍삼정 에브리타임", brand: "정관장", category: "health", emoji: "🌿", origin: "대한민국", verified: false, pick: true,
-    desc: "스틱형으로 간편하게 챙기는 홍삼.", tags: ["홍삼", "선물"], coupangUrl: q("정관장 홍삼정 에브리타임") },
-  { id: 5, name: "IH 전기압력밥솥 6인용", brand: "쿠쿠", category: "kitchen", emoji: "🍚", origin: "대한민국", verified: false, pick: true,
-    desc: "찰진 밥맛의 IH 압력밥솥.", tags: ["밥솥", "가전"], coupangUrl: q("쿠쿠 IH 전기압력밥솥 6인용") },
-  { id: 6, name: "스텐 압력솥", brand: "풍년", category: "kitchen", emoji: "🥘", origin: "대한민국", verified: false,
-    desc: "오래 쓰는 스테인리스 압력솥.", tags: ["압력솥", "냄비"], coupangUrl: q("풍년 스텐 압력솥") },
-  { id: 7, name: "크린랩 위생백·랩 세트", brand: "크린랲", category: "kitchen", emoji: "🧻", origin: "대한민국", verified: false,
-    desc: "주방 소모품 한 번에 장만.", tags: ["랩", "위생백"], coupangUrl: q("크린랲 크린랩") },
-  { id: 8, name: "유한락스 레귤러", brand: "유한크로락스", category: "living", emoji: "🧴", origin: "대한민국", verified: false,
-    desc: "욕실·주방 살균 표백제.", tags: ["세제", "청소"], coupangUrl: q("유한락스 레귤러") },
-  { id: 9, name: "무궁화 빨래비누", brand: "무궁화", category: "living", emoji: "🧼", origin: "대한민국", verified: false,
-    desc: "찌든 때 손빨래용 비누.", tags: ["비누", "세탁"], coupangUrl: q("무궁화 빨래비누") },
-  { id: 10, name: "자양윤모 샴푸", brand: "려", category: "beauty", emoji: "💆", origin: "대한민국", verified: false,
-    desc: "한방 성분 탈모증상 완화 샴푸.", tags: ["샴푸", "헤어"], coupangUrl: q("려 자양윤모 샴푸") },
-  { id: 11, name: "독도 토너", brand: "라운드랩", category: "beauty", emoji: "💧", origin: "대한민국", verified: false, pick: true,
-    desc: "순한 데일리 각질 케어 토너.", tags: ["토너", "스킨케어"], coupangUrl: q("라운드랩 독도 토너") },
-  { id: 12, name: "153 볼펜 세트", brand: "모나미", category: "stationery", emoji: "🖊️", origin: "대한민국", verified: false,
-    desc: "60년 넘게 쓰인 국민 볼펜.", tags: ["볼펜", "필기구"], coupangUrl: q("모나미 153 볼펜") },
-  { id: 13, name: "종가 포기김치", brand: "종가", category: "food", emoji: "🥬", origin: "대한민국", verified: false,
-    desc: "국산 배추·고춧가루로 담근 포기김치.", tags: ["김치", "반찬"], coupangUrl: q("종가 포기김치") },
-  { id: 14, name: "비비고 왕교자", brand: "CJ제일제당", category: "food", emoji: "🥟", origin: "대한민국", verified: false,
-    desc: "냉동실 상비 만두.", tags: ["만두", "냉동"], coupangUrl: q("비비고 왕교자") },
-  { id: 15, name: "고려은단 비타민C 1000", brand: "고려은단", category: "health", emoji: "🍋", origin: "대한민국", verified: false,
-    desc: "하루 한 알 비타민C.", tags: ["비타민", "영양제"], coupangUrl: q("고려은단 비타민C 1000") },
-  { id: 16, name: "온수매트", brand: "경동나비엔", category: "living", emoji: "🛏️", origin: "대한민국", verified: false,
-    desc: "겨울철 따뜻한 숙면용 온수매트.", tags: ["매트", "겨울"], coupangUrl: q("경동나비엔 온수매트") },
-];
+/*
+ * 시트 연결 전 보여줄 예시 상품 (시트와 같은 형식)
+ * 실제 상품이 아니니 시트를 연결하면 사라집니다.
+ */
+window.EXAMPLE_CSV = `상품명,쿠팡링크,카테고리,원재료원산지,제조국,검수일,보관,수량,테마,추천,제품사진,원산지사진,브랜드,설명,태그
+국산콩 두부 300g (예시),https://www.coupang.com/np/search?q=국산콩+두부,김치·반찬,한국,,2026-11-10,냉장,1,매일 장보기,O,,,,국산 콩으로 만든 두부,"두부, 국산콩"
+국내산 배추 포기김치 1kg (예시),https://www.coupang.com/np/search?q=국산+포기김치,김치·반찬,한국,,2026-11-08,냉장,1,김장 준비,O,,,,배추·고춧가루·마늘 모두 국산,"김치, 포기김치"
+국산 고춧가루 1kg (예시),https://www.coupang.com/np/search?q=국산+고춧가루,장·양념,한국,,2026-11-05,상온,1,김장 준비,,,,,,"고춧가루, 김장"
+국산 천일염 3kg (예시),https://www.coupang.com/np/search?q=국산+천일염,장·양념,한국,,2026-11-05,상온,1,김장 준비,,,,,,"소금, 천일염"
+우리밀 만두 1kg (예시),https://www.coupang.com/np/search?q=우리밀+만두,간편식·냉동,한국,,2026-10-30,냉동,1,"자주 찾는, 매일 장보기",O,,,,밀가루까지 국산 우리밀,"만두, 우리밀"
+국산 쌀 10kg (예시),https://www.coupang.com/np/search?q=국산+쌀+10kg,쌀·잡곡,한국,,2026-10-28,상온,1,자주 찾는,,,,,,쌀
+동결건조 딸기칩 (예시),https://www.coupang.com/np/search?q=국산+딸기칩,과자·간식,한국,,2026-11-02,상온,3,"원물 간식, 아이 간식",O,,,,원재료 딱 하나 딸기,"딸기, 원물간식"
+국산콩 두유 190ml 24팩 (예시),https://www.coupang.com/np/search?q=국산콩+두유,음료·차,한국,,2026-11-12,상온,24,아이 간식,,,,,,"두유, 국산콩"
+볶은 보리차 티백 (예시),https://www.coupang.com/np/search?q=국산+보리차,음료·차,한국,,2026-11-12,상온,1,매일 장보기,,,,,,"보리차, 차"
+국산 멸치 500g (예시),https://www.coupang.com/np/search?q=국산+멸치,수산·건어물,한국,,2026-10-20,냉동,1,자주 찾는,,,,,,멸치
+수입 원료 섞인 상품 (예시: 기준 미달로 숨김),https://www.coupang.com/np/search?q=예시,간편식·냉동,"한국, 미국",,2026-10-01,냉동,1,자주 찾는,,,,,,
+김장용 고무장갑 (예시),https://www.coupang.com/np/search?q=국산+고무장갑,주방용품,,한국,2026-11-06,,3,김장 준비,,,,,,"고무장갑, 김장"
+스테인리스 냄비 (예시),https://www.coupang.com/np/search?q=국산+스텐+냄비,주방용품,,한국,2026-10-25,,1,자주 찾는,O,,,,,냄비
+빨래비누 (예시),https://www.coupang.com/np/search?q=국산+빨래비누,세제·청소,,한국,2026-10-25,,4,,,,,,,"비누, 세탁"
+볼펜 세트 (예시),https://www.coupang.com/np/search?q=국산+볼펜,문구·사무,,한국,2026-10-18,,1,,,,,,,볼펜
+`;
