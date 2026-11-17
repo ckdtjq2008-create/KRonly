@@ -223,7 +223,7 @@
       </div>
       <div class="cta-bar">
         <div class="cta-row">
-          ${link("쿠팡에서 구매하기", "cta")}
+          ${link(`<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM5.2 4l.6 2H21l-2.4 8.4a2 2 0 0 1-1.9 1.6H8.2a2 2 0 0 1-1.9-1.5L3.7 4H1V2h4.2l.6 2Z"/></svg>쿠팡에서 구매하기`, "cta")}
           <button class="icon-btn" type="button" data-share="${p.id}" aria-label="공유하기" title="공유하기">
             <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M18 16a3 3 0 0 0-2.4 1.2l-6.7-3.4a3 3 0 0 0 0-1.6l6.7-3.4A3 3 0 1 0 15 7l-6.7 3.4a3 3 0 1 0 0 3.2L15 17a3 3 0 1 0 3-1Z"/></svg>
           </button>

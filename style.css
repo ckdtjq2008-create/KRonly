@@ -10,7 +10,8 @@
   --ok: #047857;
   --frozen: #2563eb;
   --chilled: #0891b2;
-  --coupang: #e52528;
+  --buy: #059669;
+  --buy-hover: #047857;
   --radius: 14px;
 }
 * { box-sizing: border-box; }
@@ -213,10 +214,15 @@ button { font: inherit; color: inherit; }
 .d-tags button { border: 0; background: var(--bg); border-radius: 999px; padding: 4px 10px; font-size: 13px; cursor: pointer; }
 .cta-bar { padding: 12px 20px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--surface); }
 .cta-row { display: flex; gap: 8px; }
-.cta { flex: 1; display: block; text-align: center; background: var(--coupang); color: #fff; font-weight: 700; font-size: 16px; padding: 14px; border-radius: 12px; }
-.cta:hover { filter: brightness(1.05); }
+.cta {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; text-align: center;
+  background: linear-gradient(180deg, #10b981, var(--buy)); color: #fff; font-weight: 700; font-size: 16px;
+  padding: 14px; border-radius: 12px; box-shadow: 0 4px 12px rgb(5 150 105 / .25); transition: background .15s, transform .1s;
+}
+.cta:hover { background: linear-gradient(180deg, var(--buy), var(--buy-hover)); }
+.cta:active { transform: translateY(1px); }
 .icon-btn { flex: none; width: 52px; display: grid; place-items: center; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; cursor: pointer; color: var(--muted); }
-.fine { font-size: 11px; color: var(--coupang); margin: 8px 0 0; text-align: center; opacity: .85; }
+.fine { font-size: 11px; color: var(--muted); margin: 8px 0 0; text-align: center; }
 @media (max-width: 640px) {
   .detail { margin: auto auto 0; width: 100%; max-width: 100%; max-height: 92dvh; border-radius: 20px 20px 0 0; }
 }
