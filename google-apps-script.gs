@@ -8,6 +8,7 @@
  *  4. 폼 편집 화면에서 '파일 업로드' 질문 2개(제품사진, 원산지사진) 추가
  *  5. 메뉴 [국산모아] → [② 사진 공유 다시 적용] (이미 올린 사진이 있을 때만)
  *  6. 메뉴 [국산모아] → [③ 수정 링크 만들기] (한 번만. 이후 등록분은 자동)
+ *  7. 메뉴 [국산모아] → [④ 사진 교체 폼 만들기] → 그 폼에도 '파일 업로드' 질문 2개 추가
  *
  * 하는 일
  *  - 질문·드롭다운이 들어간 폼을 만들고 이 시트에 응답이 쌓이게 연결
@@ -15,6 +16,8 @@
  *  - 폼으로 올라온 사진을 자동으로 "링크가 있는 모든 사용자(뷰어)"로 공유
  *  - 상품마다 '수정링크'(✏️ 수정) 칸 생성 → 휴대폰에서 눌러 사진·내용을 고쳐 다시 제출
  *    (링크 주소는 웹 게시 CSV에 나가지 않고 "✏️ 수정" 글자만 나갑니다)
+ *  - '사진 교체' 폼: 상품을 고르고 새 사진을 올리면 [제품사진교체]/[원산지사진교체] 칸에 기록
+ *    (사이트는 교체 칸을 우선 표시. 원래 칸은 폼이 관리하므로 건드리지 않음)
  */
 
 const FORM_TITLE = '국산모아 상품 등록';
@@ -27,6 +30,7 @@ function onOpen() {
     .addItem('① 등록 폼 만들기', 'setup')
     .addItem('② 사진 공유 다시 적용', 'shareAllUploads')
     .addItem('③ 수정 링크 만들기', 'addEditLinks')
+    .addItem('④ 사진 교체 폼 만들기', 'setupPhotoForm')
     .addItem('폼 링크 보기', 'showLinks')
     .addToUi();
 }
@@ -125,6 +129,7 @@ function onSubmit(e) {
   try {
     Utilities.sleep(5000); // 응답이 시트에 기록될 때까지 잠깐 대기
     addEditLinks_();
+    refreshPhotoChoices();
   } catch (err) {
     console.error('수정 링크 갱신 실패: ' + err);
   }
@@ -157,7 +162,7 @@ function addEditLinks() {
   const n = addEditLinks_();
   SpreadsheetApp.getUi().alert('수정 링크를 ' + n + '개 만들었어요.\n\n' +
     '상품 탭의 [수정링크] 칸 "✏️ 수정"을 누르면 그 상품의 폼이 열립니다.\n' +
-    '사진이나 내용을 고쳐 제출하면 같은 줄이 바뀌어요. (휴대폰 시트 앱에서도 됩니다)\n\n' +
+    '글자 내용을 고쳐 제출하면 같은 줄이 바뀌어요. 사진은 [④ 사진 교체 폼]으로 바꾸세요.\n\n' +
     '이후 새로 등록하는 상품은 자동으로 링크가 생깁니다.');
 }
 
@@ -165,11 +170,7 @@ function addEditLinks_() {
   const id = PropertiesService.getDocumentProperties().getProperty('FORM_ID');
   if (!id) return 0;
   const form = FormApp.openById(id);
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheets().find(function (sh) {
-    const u = sh.getFormUrl();
-    return u && u.indexOf(id) >= 0;
-  }) || ss.getSheetByName('상품');
+  const sheet = productSheet_();
   if (!sheet || sheet.getLastRow() < 2) return 0;
 
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(String);
@@ -206,6 +207,105 @@ function addEditLinks_() {
   return n;
 }
 
+// 상품 응답 시트 찾기
+function productSheet_() {
+  const id = PropertiesService.getDocumentProperties().getProperty('FORM_ID');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  return ss.getSheets().find(function (sh) {
+    const u = sh.getFormUrl();
+    return id && u && u.indexOf(id) >= 0;
+  }) || ss.getSheetByName('상품');
+}
+
+/* ---------- 사진 교체 폼 ---------- */
+
+function setupPhotoForm() {
+  const ui = SpreadsheetApp.getUi();
+  const props = PropertiesService.getDocumentProperties();
+  const existing = props.getProperty('PHOTO_FORM_ID');
+  if (existing) {
+    refreshPhotoChoices();
+    const f0 = FormApp.openById(existing);
+    ui.alert('사진 교체 폼', '작성(휴대폰): ' + f0.getPublishedUrl() + '\n\n편집: ' + f0.getEditUrl(), ui.ButtonSet.OK);
+    return;
+  }
+  const f = FormApp.create('국산모아 사진 교체');
+  f.setDescription('이미 등록한 상품의 사진을 바꿉니다. 상품을 고르고 바꿀 사진만 올리세요. 비워둔 사진은 그대로예요.')
+    .setConfirmationMessage('사진을 바꿨어요. 몇 분 안에 사이트에 반영됩니다.');
+  f.addListItem().setTitle('상품').setRequired(true).setHelpText('최근 등록한 상품이 위에 있어요')
+    .setChoiceValues(['(목록 준비 중)']);
+  props.setProperty('PHOTO_FORM_ID', f.getId());
+  refreshPhotoChoices();
+  ScriptApp.newTrigger('onPhotoSubmit').forForm(f).onFormSubmit().create();
+  ScriptApp.newTrigger('refreshPhotoChoices').timeBased().everyHours(1).create();
+  writeGuide_(FormApp.openById(props.getProperty('FORM_ID')));
+  ui.alert('사진 교체 폼을 만들었어요',
+    '이 폼에도 사진 질문 2개를 직접 추가해 주세요 (필수 아님으로):\n' +
+    '   편집 링크: ' + f.getEditUrl() + '\n' +
+    '   → ＋ → "파일 업로드" → 제목 "제품사진"\n' +
+    '   → 한 번 더: 제목 "원산지사진"\n\n' +
+    '휴대폰에서 쓸 작성 링크는 [안내] 탭에 있어요.', ui.ButtonSet.OK);
+}
+
+// 사진 교체 폼의 상품 목록을 시트와 맞춤 (상품 등록 때 + 1시간마다 자동)
+function refreshPhotoChoices() {
+  const id = PropertiesService.getDocumentProperties().getProperty('PHOTO_FORM_ID');
+  if (!id) return;
+  const sheet = productSheet_();
+  if (!sheet) return;
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(String);
+  const nameCol = headers.indexOf('상품명');
+  let names = [];
+  if (nameCol >= 0 && sheet.getLastRow() >= 2) {
+    names = sheet.getRange(2, nameCol + 1, sheet.getLastRow() - 1, 1).getValues()
+      .map(function (r) { return String(r[0]).trim(); })
+      .filter(function (v) { return v; })
+      .reverse();
+    names = names.filter(function (v, i) { return names.indexOf(v) === i; });
+  }
+  const item = FormApp.openById(id).getItems(FormApp.ItemType.LIST)[0];
+  if (item) item.asListItem().setChoiceValues(names.length ? names : ['(등록된 상품 없음)']);
+}
+
+// 사진 교체 제출 → 사진 공유 + 시트의 [제품사진교체]/[원산지사진교체] 칸에 기록
+function onPhotoSubmit(e) {
+  shareResponse_(e.response);
+  let name = '';
+  const files = {};
+  e.response.getItemResponses().forEach(function (ir) {
+    const item = ir.getItem();
+    const title = item.getTitle().replace(/\s/g, '');
+    if (item.getType() === FormApp.ItemType.FILE_UPLOAD) {
+      const ids = [].concat(ir.getResponse() || []);
+      if (ids.length) files[title] = ids[0];
+    } else if (title === '상품') {
+      name = String(ir.getResponse()).trim();
+    }
+  });
+  const sheet = productSheet_();
+  if (!sheet || !name) return;
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(String);
+  const nameCol = headers.indexOf('상품명');
+  if (nameCol < 0) return;
+  const names = sheet.getRange(2, nameCol + 1, Math.max(sheet.getLastRow() - 1, 1), 1).getValues();
+  [['제품사진', '제품사진교체'], ['원산지사진', '원산지사진교체']].forEach(function (pair) {
+    const fileId = files[pair[0]];
+    if (!fileId) return;
+    let col = headers.indexOf(pair[1]) + 1;
+    if (!col) {
+      col = sheet.getLastColumn() + 1;
+      sheet.getRange(1, col).setValue(pair[1]).setFontWeight('bold')
+        .setNote("'사진 교체' 폼으로 바꾼 사진. 있으면 사이트는 이 사진을 보여줘요. 지우면 원래 사진으로 돌아갑니다.");
+      headers.push(pair[1]);
+    }
+    names.forEach(function (r, i) {
+      if (String(r[0]).trim() === name) {
+        sheet.getRange(i + 2, col).setValue('https://drive.google.com/open?id=' + fileId);
+      }
+    });
+  });
+}
+
 function showLinks() {
   const form = getForm_();
   if (!form) return;
@@ -223,9 +323,11 @@ function getForm_() {
 
 function writeGuide_(form) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const pid = PropertiesService.getDocumentProperties().getProperty('PHOTO_FORM_ID');
+  const photoUrl = pid ? FormApp.openById(pid).getPublishedUrl() : '';
   const sh = ss.getSheetByName('안내') || ss.insertSheet('안내');
   sh.clear();
-  sh.getRange(1, 1, 9, 2).setValues([
+  sh.getRange(1, 1, 10, 2).setValues([
     ['상품 등록 폼 (작성)', form.getPublishedUrl()],
     ['폼 편집', form.getEditUrl()],
     ['', ''],
@@ -233,10 +335,11 @@ function writeGuide_(form) {
     ['노출 열', '비우거나 O = 보임, X = 숨김'],
     ['사진', '폼으로 올리면 자동으로 링크 공유됨. 안 보이면 메뉴 [국산모아] → [② 사진 공유 다시 적용]'],
     ['주의', '폼 작성 링크는 다른 사람에게 알려주지 마세요 (누구나 상품을 올릴 수 있음)'],
-    ['상품 수정', '[상품] 탭 [수정링크] 칸의 "✏️ 수정" → 사진·내용 고쳐 제출 (휴대폰 OK)'],
+    ['상품 수정', '[상품] 탭 [수정링크] 칸의 "✏️ 수정" → 글자 내용 고쳐 제출 (사진은 아래 사진 교체 폼으로)'],
+    ['사진 교체 폼', photoUrl || '메뉴 [국산모아] → [④ 사진 교체 폼 만들기]'],
     ['', '이 [안내] 탭은 게시하지 마세요'],
   ]);
-  sh.getRange('A1:A9').setFontWeight('bold');
+  sh.getRange('A1:A10').setFontWeight('bold');
   sh.setColumnWidth(1, 140);
   sh.setColumnWidth(2, 640);
 }

@@ -21,6 +21,8 @@
     themes: ["테마", "기획전", "theme"],
     pick: ["추천", "pick"],
     image: ["제품사진", "상품사진", "이미지", "사진", "image"],
+    imageNew: ["제품사진교체", "새제품사진"],
+    originImageNew: ["원산지사진교체", "새원산지사진"],
     originImage: ["원산지사진", "표시사항사진", "원재료사진", "라벨사진", "국산표기사진", "표기사진"],
     brand: ["브랜드", "제조사", "brand"],
     desc: ["설명", "한줄설명", "desc"],
@@ -151,7 +153,7 @@
         if (/drive\.google\.com\/drive\/folders/.test(v)) warnings.push({ line, name, why: "사진 칸에 폴더 링크가 있음 — 사진 파일 하나의 링크를 넣어주세요" });
         else if (v && !/^https?:\/\//i.test(v)) warnings.push({ line, name, why: "사진 주소가 http로 시작하지 않음" });
       }
-      if (group === "food" && !get("originImage")) warnings.push({ line, name, why: "원산지(표시사항) 사진이 없음 — 넣으면 신뢰도가 올라갑니다" });
+      if (group === "food" && !get("originImage") && !get("originImageNew")) warnings.push({ line, name, why: "원산지(표시사항) 사진이 없음 — 넣으면 신뢰도가 올라갑니다" });
 
       // 날짜: 2026-11-16 / 2026. 11. 16 / 2026/11/16 / 2026년 11월 16일 → 2026-11-16
       const dm = (get("checkedAt") || get("timestamp")).match(/(\d{4})\D{1,3}(\d{1,2})\D{1,3}(\d{1,2})/);
@@ -178,8 +180,9 @@
         storage,
         themes: splitList(get("themes")),
         pick: yes(get("pick")),
-        image: imageUrl(get("image")),
-        originImage: imageUrl(get("originImage")),
+        // '사진 교체' 폼으로 바꾼 사진이 있으면 그걸 우선
+        image: imageUrl(get("imageNew") || get("image")),
+        originImage: imageUrl(get("originImageNew") || get("originImage")),
         brand: get("brand"),
         desc: get("desc"),
         tags: splitList(get("tags").replace(/#/g, ",")),
