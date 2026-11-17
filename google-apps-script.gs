@@ -7,11 +7,14 @@
  *  3. 메뉴 [국산모아] → [① 등록 폼 만들기] → 권한 허용
  *  4. 폼 편집 화면에서 '파일 업로드' 질문 2개(제품사진, 원산지사진) 추가
  *  5. 메뉴 [국산모아] → [② 사진 공유 다시 적용] (이미 올린 사진이 있을 때만)
+ *  6. 메뉴 [국산모아] → [③ 수정 링크 만들기] (한 번만. 이후 등록분은 자동)
  *
  * 하는 일
  *  - 질문·드롭다운이 들어간 폼을 만들고 이 시트에 응답이 쌓이게 연결
  *  - 응답 시트 이름을 '상품'으로 바꾸고 '노출'(O/X) 열 추가
  *  - 폼으로 올라온 사진을 자동으로 "링크가 있는 모든 사용자(뷰어)"로 공유
+ *  - 상품마다 '수정링크'(✏️ 수정) 칸 생성 → 휴대폰에서 눌러 사진·내용을 고쳐 다시 제출
+ *    (링크 주소는 웹 게시 CSV에 나가지 않고 "✏️ 수정" 글자만 나갑니다)
  */
 
 const FORM_TITLE = '국산모아 상품 등록';
@@ -23,6 +26,7 @@ function onOpen() {
     .createMenu('국산모아')
     .addItem('① 등록 폼 만들기', 'setup')
     .addItem('② 사진 공유 다시 적용', 'shareAllUploads')
+    .addItem('③ 수정 링크 만들기', 'addEditLinks')
     .addItem('폼 링크 보기', 'showLinks')
     .addToUi();
 }
@@ -118,6 +122,12 @@ function addVisibleColumn_(sheet) {
 // 폼 제출 시: 올라온 사진을 링크 공유로
 function onSubmit(e) {
   shareResponse_(e.response);
+  try {
+    Utilities.sleep(5000); // 응답이 시트에 기록될 때까지 잠깐 대기
+    addEditLinks_();
+  } catch (err) {
+    console.error('수정 링크 갱신 실패: ' + err);
+  }
 }
 
 function shareResponse_(response) {
@@ -142,6 +152,60 @@ function shareAllUploads() {
   SpreadsheetApp.getUi().alert('응답 ' + responses.length + '개의 사진을 "링크가 있는 모든 사용자"로 공유했어요.');
 }
 
+// 메뉴: 모든 상품 줄에 수정 링크 채우기
+function addEditLinks() {
+  const n = addEditLinks_();
+  SpreadsheetApp.getUi().alert('수정 링크를 ' + n + '개 만들었어요.\n\n' +
+    '상품 탭의 [수정링크] 칸 "✏️ 수정"을 누르면 그 상품의 폼이 열립니다.\n' +
+    '사진이나 내용을 고쳐 제출하면 같은 줄이 바뀌어요. (휴대폰 시트 앱에서도 됩니다)\n\n' +
+    '이후 새로 등록하는 상품은 자동으로 링크가 생깁니다.');
+}
+
+function addEditLinks_() {
+  const id = PropertiesService.getDocumentProperties().getProperty('FORM_ID');
+  if (!id) return 0;
+  const form = FormApp.openById(id);
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheets().find(function (sh) {
+    const u = sh.getFormUrl();
+    return u && u.indexOf(id) >= 0;
+  }) || ss.getSheetByName('상품');
+  if (!sheet || sheet.getLastRow() < 2) return 0;
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(String);
+  let col = headers.indexOf('수정링크') + 1;
+  if (!col) {
+    col = sheet.getLastColumn() + 1;
+    sheet.getRange(1, col).setValue('수정링크').setFontWeight('bold')
+      .setNote('누르면 이 상품을 등록한 폼이 열려요. 사진·내용을 고쳐 제출하면 이 줄이 바뀝니다.');
+  }
+  const tsCol = Math.max(headers.indexOf('타임스탬프'), 0);
+  const nameCol = headers.indexOf('상품명');
+  const linkCol = headers.indexOf('쿠팡링크');
+
+  // 응답 ↔ 시트 줄 연결: 제출 시각(초) 우선, 안 맞으면 상품명+쿠팡링크
+  const byTs = {}, byKey = {};
+  form.getResponses().forEach(function (r) {
+    const url = r.getEditResponseUrl();
+    byTs[Math.floor(r.getTimestamp().getTime() / 1000)] = url;
+    const v = {};
+    r.getItemResponses().forEach(function (ir) { v[ir.getItem().getTitle()] = ir.getResponse(); });
+    byKey[String(v['상품명'] || '').trim() + '|' + String(v['쿠팡링크'] || '').trim()] = url;
+  });
+
+  const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+  let n = 0;
+  const out = rows.map(function (row) {
+    const t = row[tsCol] instanceof Date ? Math.floor(row[tsCol].getTime() / 1000) : null;
+    const key = (nameCol >= 0 ? String(row[nameCol]).trim() : '') + '|' + (linkCol >= 0 ? String(row[linkCol]).trim() : '');
+    const url = (t && (byTs[t] || byTs[t - 1] || byTs[t + 1])) || byKey[key];
+    if (url) n++;
+    return [url ? '=HYPERLINK("' + url + '","✏️ 수정")' : ''];
+  });
+  sheet.getRange(2, col, out.length, 1).setFormulas(out);
+  return n;
+}
+
 function showLinks() {
   const form = getForm_();
   if (!form) return;
@@ -161,7 +225,7 @@ function writeGuide_(form) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sh = ss.getSheetByName('안내') || ss.insertSheet('안내');
   sh.clear();
-  sh.getRange(1, 1, 8, 2).setValues([
+  sh.getRange(1, 1, 9, 2).setValues([
     ['상품 등록 폼 (작성)', form.getPublishedUrl()],
     ['폼 편집', form.getEditUrl()],
     ['', ''],
@@ -169,9 +233,10 @@ function writeGuide_(form) {
     ['노출 열', '비우거나 O = 보임, X = 숨김'],
     ['사진', '폼으로 올리면 자동으로 링크 공유됨. 안 보이면 메뉴 [국산모아] → [② 사진 공유 다시 적용]'],
     ['주의', '폼 작성 링크는 다른 사람에게 알려주지 마세요 (누구나 상품을 올릴 수 있음)'],
+    ['상품 수정', '[상품] 탭 [수정링크] 칸의 "✏️ 수정" → 사진·내용 고쳐 제출 (휴대폰 OK)'],
     ['', '이 [안내] 탭은 게시하지 마세요'],
   ]);
-  sh.getRange('A1:A8').setFontWeight('bold');
+  sh.getRange('A1:A9').setFontWeight('bold');
   sh.setColumnWidth(1, 140);
   sh.setColumnWidth(2, 640);
 }
